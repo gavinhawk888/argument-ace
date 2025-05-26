@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from '@/hooks/use-toast'
 
+// vercel debug: 20240527
+
 export default function ContactPage() {
   const [language] = useLocalStorage<string>("language", "english")
   const { toast } = useToast()
