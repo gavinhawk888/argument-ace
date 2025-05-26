@@ -6,10 +6,11 @@ import Footer from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from '@/hooks/use-toast'
 
 export default function ContactPage() {
   const [language] = useLocalStorage<string>("language", "english")
+  const { toast } = useToast()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
