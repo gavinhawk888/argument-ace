@@ -1,31 +1,21 @@
 "use client"
 
 import { useLanguage } from "@/hooks/language-context"
-import { useHasMounted } from "@/hooks/use-has-mounted"
+// import { useHasMounted } from "@/hooks/use-has-mounted" // No longer needed for this page content
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from '@/hooks/use-toast'
+// Input, Textarea, useToast are no longer needed as the form is removed.
 
 // vercel debug: 20240527
 
 export default function ContactPage() {
   const { language } = useLanguage()
-  const { toast } = useToast()
+  // const { toast } = useToast() // toast is no longer needed
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Simulate form submission
-    toast({
-      title: language === "chinese" ? "消息已发送" : "Message Sent",
-      description: language === "chinese" 
-        ? "感谢您的反馈，我们会尽快回复您。" 
-        : "Thank you for your feedback. We'll get back to you soon.",
-    })
-  }
+  // handleSubmit is no longer needed
+
+  const authorEmail = "gavinhawk888@gmail.com";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -36,52 +26,24 @@ export default function ContactPage() {
           {language === "chinese" ? "联系我们" : "Contact Us"}
         </h1>
 
-        <p className="mb-8 text-lg">
-          {language === "chinese" 
-            ? "有问题或建议？请填写下面的表格，我们会尽快回复您。" 
-            : "Have a question or suggestion? Fill out the form below and we'll get back to you as soon as possible."}
-        </p>
+        {/* Removed introductory paragraph */}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label htmlFor="name" className="block text-sm font-medium">
-              {language === "chinese" ? "姓名" : "Name"}
-            </label>
-            <Input 
-              id="name" 
-              placeholder={language === "chinese" ? "请输入您的姓名" : "Enter your name"} 
-              required 
-            />
-          </div>
+        <div className="space-y-3 text-lg mb-8">
+          <p>作者：Gavin Hawk</p>
+          <p>邮箱：{authorEmail}</p>
+          <p>  X   ：@gavinhuang888</p>
+        </div>
 
-          <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium">
-              {language === "chinese" ? "电子邮箱" : "Email"}
-            </label>
-            <Input 
-              id="email" 
-              type="email" 
-              placeholder={language === "chinese" ? "请输入您的电子邮箱" : "Enter your email"} 
-              required 
-            />
-          </div>
+        {/* Removed form */}
 
-          <div className="space-y-2">
-            <label htmlFor="message" className="block text-sm font-medium">
-              {language === "chinese" ? "消息" : "Message"}
-            </label>
-            <Textarea 
-              id="message" 
-              rows={5} 
-              placeholder={language === "chinese" ? "请输入您的消息" : "Enter your message"} 
-              required 
-            />
-          </div>
-
-          <Button type="submit" className="w-full">
-            {language === "chinese" ? "发送消息" : "Send Message"}
+        <a 
+          href={`mailto:${authorEmail}`}
+          className="w-full md:w-auto"
+        >
+          <Button className="w-full md:w-auto">
+            {language === "chinese" ? "发送邮件" : "Send Email"}
           </Button>
-        </form>
+        </a>
       </main>
 
       <Footer />
