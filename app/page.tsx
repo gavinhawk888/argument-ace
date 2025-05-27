@@ -217,7 +217,7 @@ export default function HomePage() {
           if (timerRef.current) clearInterval(timerRef.current)
           if (onEnd) onEnd()
         }
-      }, 200)
+      }, 100)
       
       return () => {
         if (timerRef.current) clearInterval(timerRef.current)
