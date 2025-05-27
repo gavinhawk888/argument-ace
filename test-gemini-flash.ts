@@ -40,10 +40,19 @@ interface ArgumentResponse {
   alternative?: string;
 }
 
+interface TimeStats {
+  totalTime: number;
+  apiCallTime: number;
+  parseTime: number;
+  setupTime: number;
+}
+
 /**
  * 调用Gemini 2.0 Flash API生成回应
  */
-async function generateResponsesWithGemini(argument: string): Promise<ArgumentResponse[]> {
+async function generateResponsesWithGemini(argument: string, testIndex?: number): Promise<{ responses: ArgumentResponse[], timeStats: TimeStats } | null> {
+  const overallStartTime = Date.now();
+  
   const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY_GEMINI;
   const SITE_URL = process.env.SITE_URL || 'https://argument-ace.vercel.app';
   const SITE_NAME = process.env.SITE_NAME || 'Argument Ace';
@@ -51,6 +60,14 @@ async function generateResponsesWithGemini(argument: string): Promise<ArgumentRe
   if (!OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY_GEMINI is not set in environment variables');
   }
+
+  if (testIndex) {
+    console.log(`\n📝 测试案例 ${testIndex}: "${argument}"`);
+    console.log('─'.repeat(50));
+  }
+
+  // 设置阶段计时
+  const setupStartTime = Date.now();
 
   const prompt = `对方在争论中说："${argument}"
 
@@ -75,9 +92,12 @@ async function generateResponsesWithGemini(argument: string): Promise<ArgumentRe
 - 语言自然，适合口语对话
 - 避免过于学术化的表达`;
 
-  const startTime = Date.now();
+  const setupTime = Date.now() - setupStartTime;
 
   try {
+    // API调用阶段计时
+    const apiStartTime = Date.now();
+    
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -99,17 +119,19 @@ async function generateResponsesWithGemini(argument: string): Promise<ArgumentRe
       })
     });
 
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
+    const apiCallTime = Date.now() - apiStartTime;
 
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`API request failed: ${response.status} - ${errorText}`);
     }
 
+    // 解析阶段计时
+    const parseStartTime = Date.now();
+
     const data: GeminiResponse = await response.json();
     
-    console.log(`✅ Gemini 2.0 Flash响应时间: ${responseTime}ms`);
+    console.log(`✅ Gemini 2.0 Flash API调用时间: ${apiCallTime}ms`);
     console.log(`📊 Token使用情况:`, data.usage);
     console.log(`🤖 模型: ${data.model}`);
 
@@ -118,24 +140,60 @@ async function generateResponsesWithGemini(argument: string): Promise<ArgumentRe
       throw new Error('No content in API response');
     }
 
+    let parsedResponses: ArgumentResponse[] = [];
+    
     // 尝试解析JSON响应
     try {
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        const parsedResponses = JSON.parse(jsonMatch[0]);
-        return parsedResponses;
+        parsedResponses = JSON.parse(jsonMatch[0]);
+        console.log(`✅ 成功生成 ${parsedResponses.length} 个回应`);
+        
+        // 显示生成的回应
+        if (testIndex) {
+          parsedResponses.forEach((response, i) => {
+            const types = ['直接挑战', '理解共情', '引导思考'];
+            console.log(`\n${i + 1}. 【${types[i]}】`);
+            console.log(`   回应: "${response.text}"`);
+            console.log(`   说明: ${response.description}`);
+            if (response.alternative) {
+              console.log(`   替代: "${response.alternative}"`);
+            }
+          });
+        }
       } else {
         throw new Error('No JSON array found in response');
       }
     } catch (parseError) {
-      console.error('JSON解析失败，原始响应:', content);
+      console.error('❌ JSON解析失败，原始响应:', content);
       throw new Error(`Failed to parse JSON response: ${parseError}`);
     }
 
+    const parseTime = Date.now() - parseStartTime;
+    const totalTime = Date.now() - overallStartTime;
+
+    // 时间统计
+    if (testIndex) {
+      console.log(`\n⏱️  时间统计:`);
+      console.log(`   设置时间: ${setupTime}ms`);
+      console.log(`   API调用时间: ${apiCallTime}ms`);
+      console.log(`   解析时间: ${parseTime}ms`);
+      console.log(`   总处理时间: ${totalTime}ms`);
+    }
+
+    return {
+      responses: parsedResponses,
+      timeStats: {
+        totalTime,
+        apiCallTime,
+        parseTime,
+        setupTime
+      }
+    };
+
   } catch (error) {
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    console.error(`❌ Gemini 2.0 Flash请求失败 (${responseTime}ms):`, error);
+    const totalTime = Date.now() - overallStartTime;
+    console.error(`❌ Gemini 2.0 Flash请求失败 (${totalTime}ms):`, error);
     throw error;
   }
 }
@@ -154,29 +212,17 @@ async function runTest() {
     "你别说话"
   ];
 
+  const timeStats: TimeStats[] = [];
+
   for (let index = 0; index < testCases.length; index++) {
     const testCase = testCases[index];
-    console.log(`\n📝 测试案例 ${index + 1}: "${testCase}"`);
-    console.log('─'.repeat(50));
 
     try {
-      const startTime = Date.now();
-      const responses = await generateResponsesWithGemini(testCase);
-      const endTime = Date.now();
-
-      console.log(`⏱️  总处理时间: ${endTime - startTime}ms`);
-      console.log(`✅ 成功生成 ${responses.length} 个回应:\n`);
-
-      responses.forEach((response, i) => {
-        const types = ['直接挑战', '理解共情', '引导思考'];
-        console.log(`${i + 1}. 【${types[i]}】`);
-        console.log(`   回应: "${response.text}"`);
-        console.log(`   说明: ${response.description}`);
-        if (response.alternative) {
-          console.log(`   替代: "${response.alternative}"`);
-        }
-        console.log('');
-      });
+      const result = await generateResponsesWithGemini(testCase, index + 1);
+      
+      if (result) {
+        timeStats.push(result.timeStats);
+      }
 
     } catch (error) {
       console.error(`❌ 测试失败:`, error);
@@ -184,9 +230,33 @@ async function runTest() {
 
     // 在测试案例间添加延迟，避免API限制
     if (index < testCases.length - 1) {
-      console.log('⏳ 等待2秒后继续下一个测试...');
+      console.log('\n⏳ 等待2秒后继续下一个测试...');
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
+  }
+
+  // 计算总体统计
+  if (timeStats.length > 0) {
+    console.log('\n📊 总体性能统计 (Gemini 2.0 Flash):');
+    console.log('═'.repeat(50));
+    
+    const avgTotal = timeStats.reduce((sum, stat) => sum + stat.totalTime, 0) / timeStats.length;
+    const avgAPI = timeStats.reduce((sum, stat) => sum + stat.apiCallTime, 0) / timeStats.length;
+    const avgParse = timeStats.reduce((sum, stat) => sum + stat.parseTime, 0) / timeStats.length;
+    const avgSetup = timeStats.reduce((sum, stat) => sum + stat.setupTime, 0) / timeStats.length;
+
+    const minTotal = Math.min(...timeStats.map(stat => stat.totalTime));
+    const maxTotal = Math.max(...timeStats.map(stat => stat.totalTime));
+    const minAPI = Math.min(...timeStats.map(stat => stat.apiCallTime));
+    const maxAPI = Math.max(...timeStats.map(stat => stat.apiCallTime));
+
+    console.log(`平均总处理时间: ${avgTotal.toFixed(1)}ms`);
+    console.log(`平均API调用时间: ${avgAPI.toFixed(1)}ms`);
+    console.log(`平均解析时间: ${avgParse.toFixed(1)}ms`);
+    console.log(`平均设置时间: ${avgSetup.toFixed(1)}ms`);
+    console.log(`\n最快/最慢总时间: ${minTotal}ms / ${maxTotal}ms`);
+    console.log(`最快/最慢API时间: ${minAPI}ms / ${maxAPI}ms`);
+    console.log(`\n成功测试数量: ${timeStats.length}/${testCases.length}`);
   }
 
   console.log('\n🎉 测试完成！');
@@ -197,4 +267,5 @@ if (require.main === module) {
   runTest().catch(console.error);
 }
 
-export { generateResponsesWithGemini }; 
+export { generateResponsesWithGemini, runTest };
+export type { TimeStats, ArgumentResponse }; 
