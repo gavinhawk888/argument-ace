@@ -10,9 +10,10 @@
 # 现有的API密钥
 OPENAI_API_KEY=your_openai_api_key_here
 DEEPGRAM_API_KEY=your_deepgram_api_key_here
-
-# Gemini 2.0 Flash (通过OpenRouter)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
+
+# Gemini 2.0 Flash (通过OpenRouter的专用密钥)
+OPENROUTER_API_KEY_GEMINI=your_openrouter_gemini_api_key_here
 SITE_URL=https://argument-ace.vercel.app
 SITE_NAME=Argument Ace
 ```
@@ -21,7 +22,7 @@ SITE_NAME=Argument Ace
 
 1. 访问 [OpenRouter.ai](https://openrouter.ai/)
 2. 注册账户并获取API密钥
-3. 将密钥填入 `.env` 文件中的 `OPENROUTER_API_KEY`
+3. 将密钥填入 `.env` 文件中的 `OPENROUTER_API_KEY_GEMINI`
 
 ## 运行测试
 

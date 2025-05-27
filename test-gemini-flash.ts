@@ -3,7 +3,7 @@
  * 
  * 使用方法：
  * 1. 在.env文件中添加以下环境变量：
- *    OPENROUTER_API_KEY=your_openrouter_api_key_here
+ *    OPENROUTER_API_KEY_GEMINI=your_openrouter_gemini_api_key_here
  *    SITE_URL=https://argument-ace.vercel.app
  *    SITE_NAME=Argument Ace
  * 2. 运行测试：npx ts-node test-gemini-flash.ts
@@ -44,12 +44,12 @@ interface ArgumentResponse {
  * 调用Gemini 2.0 Flash API生成回应
  */
 async function generateResponsesWithGemini(argument: string): Promise<ArgumentResponse[]> {
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY_GEMINI;
   const SITE_URL = process.env.SITE_URL || 'https://argument-ace.vercel.app';
   const SITE_NAME = process.env.SITE_NAME || 'Argument Ace';
 
   if (!OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not set in environment variables');
+    throw new Error('OPENROUTER_API_KEY_GEMINI is not set in environment variables');
   }
 
   const prompt = `对方在争论中说："${argument}"
