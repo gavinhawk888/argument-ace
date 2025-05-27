@@ -32,10 +32,9 @@ export async function generateResponses(transcript: string, language: string = "
     if (Array.isArray(result.responses)) {
       return result.responses
     }
-
-    // 如果AI返回的不是数组，尝试包装成数组
+    // 如果AI返回的是对象（如含direct_challenge等），转为数组
     if (result.responses && typeof result.responses === 'object') {
-      return [result.responses]
+      return Object.values(result.responses)
     }
 
     throw new Error('Invalid response format from AI')

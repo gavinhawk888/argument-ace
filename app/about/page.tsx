@@ -1,11 +1,12 @@
 "use client"
 
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLanguage } from "@/hooks/language-context"
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
 
 export default function AboutPage() {
-  const [language] = useLocalStorage<string>("language", "english")
+  const { language } = useLanguage()
+  if (!language) return null;
 
   return (
     <div className="flex min-h-screen flex-col">

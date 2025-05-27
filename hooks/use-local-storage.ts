@@ -7,31 +7,33 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T)
   const [storedValue, setStoredValue] = useState<T>(initialValue)
 
   useEffect(() => {
-    // Get from local storage by key
+    // 初始化时同步本地存储
     const item = window.localStorage.getItem(key)
-    // Parse stored json or return initialValue
     if (item) {
       try {
         setStoredValue(JSON.parse(item))
-      } catch (error) {
-        console.log(error)
+      } catch {
         setStoredValue(initialValue)
       }
     }
+    // 监听 storage 事件
+    function handleStorage(event: StorageEvent) {
+      if (event.key === key) {
+        setStoredValue(event.newValue ? JSON.parse(event.newValue) : initialValue)
+      }
+    }
+    window.addEventListener("storage", handleStorage)
+    return () => window.removeEventListener("storage", handleStorage)
   }, [key, initialValue])
 
   // Return a wrapped version of useState's setter function that
   // persists the new value to localStorage
   const setValue = (value: T) => {
-    try {
-      // Save state
-      setStoredValue(value)
-      // Save to local storage
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(key, JSON.stringify(value))
-      }
-    } catch (error) {
-      console.log(error)
+    setStoredValue(value)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(key, JSON.stringify(value))
+      // 主动广播 storage 事件，确保同一页面所有 hook 都响应
+      window.dispatchEvent(new StorageEvent("storage", { key, newValue: JSON.stringify(value) }))
     }
   }
 

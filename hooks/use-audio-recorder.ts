@@ -8,14 +8,27 @@ export function useAudioRecorder() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [transcript, setTranscript] = useState<string>("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [hasError, setHasError] = useState(false)
   const { toast } = useToast()
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
+  // 重置所有状态
+  const resetStates = useCallback(() => {
+    setIsRecording(false)
+    setAudioBlob(null)
+    setTranscript("")
+    setIsProcessing(false)
+    setHasError(false)
+  }, [])
+
   // 开始录音
   const startRecording = useCallback(async () => {
     try {
+      // 重置之前的状态
+      resetStates()
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           sampleRate: 16000,
@@ -53,7 +66,6 @@ export function useAudioRecorder() {
       mediaRecorderRef.current = mediaRecorder
       mediaRecorder.start(1000) // 每秒收集一次数据
       setIsRecording(true)
-      setTranscript("")
       
       toast({
         title: "录音开始",
@@ -61,13 +73,14 @@ export function useAudioRecorder() {
       })
     } catch (error) {
       console.error('Start recording error:', error)
+      setHasError(true)
       toast({
         variant: "destructive",
         title: "录音失败",
         description: "无法访问麦克风，请检查权限设置",
       })
     }
-  }, [toast])
+  }, [toast, resetStates])
 
   // 停止录音
   const stopRecording = useCallback(() => {
@@ -135,17 +148,20 @@ export function useAudioRecorder() {
           description: `识别到：${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`,
         })
       } else {
+        // 识别到空内容也算作错误
+        setHasError(true)
         toast({
           variant: "destructive", 
-          title: "识别失败",
+          title: "音频识别失败，请重试！",
           description: "未能识别到有效的语音内容",
         })
       }
     } catch (error) {
       console.error('Audio processing error:', error)
+      setHasError(true)
       toast({
         variant: "destructive",
-        title: "处理失败", 
+        title: "音频识别失败，请重试！", 
         description: "音频处理过程中出现错误：" + (error instanceof Error ? error.message : '未知错误'),
       })
     } finally {
@@ -197,8 +213,10 @@ export function useAudioRecorder() {
     audioBlob,
     transcript,
     isProcessing,
+    hasError,
     startRecording,
     stopRecording,
-    checkMicrophonePermission
+    checkMicrophonePermission,
+    resetStates
   }
 }

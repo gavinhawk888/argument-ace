@@ -1,6 +1,7 @@
 "use client"
 
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLanguage } from "@/hooks/language-context"
+import { useHasMounted } from "@/hooks/use-has-mounted"
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
@@ -11,7 +12,7 @@ import { useToast } from '@/hooks/use-toast'
 // vercel debug: 20240527
 
 export default function ContactPage() {
-  const [language] = useLocalStorage<string>("language", "english")
+  const { language } = useLanguage()
   const { toast } = useToast()
 
   const handleSubmit = (e: React.FormEvent) => {

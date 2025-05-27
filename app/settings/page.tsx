@@ -3,20 +3,24 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLanguage } from "@/hooks/language-context"
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useHasMounted } from "@/hooks/use-has-mounted"
 
 export default function SettingsPage() {
-  const [language, setLanguage] = useLocalStorage<string>("language", "english")
+  const { language, setLanguage } = useLanguage()
+  if (!language) return null;
   const [version] = useState("1.0.0")
 
   // Handle language toggle
   const handleLanguageChange = (newLanguage: string) => {
-    setLanguage(newLanguage)
+    if (newLanguage === "chinese" || newLanguage === "english") {
+      setLanguage(newLanguage)
+    }
   }
 
   return (
@@ -64,7 +68,7 @@ export default function SettingsPage() {
               </Button>
               <Separator />
               <Button variant="ghost" className="flex w-full justify-between p-4 h-auto">
-                <span>{language === "chinese" ? "帮助中心" : "Help Center"}</span>
+                <span>{hasMounted ? (language === "chinese" ? "帮助中心" : "Help Center") : "Help Center"}</span>
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </CardContent>
@@ -73,23 +77,23 @@ export default function SettingsPage() {
 
         <section>
           <h2 className="mb-4 text-xl font-semibold">
-            {language === "chinese" ? "关于" : "About"}
+            {hasMounted ? (language === "chinese" ? "关于" : "About") : "About"}
           </h2>
 
           <Card>
             <CardContent className="p-0">
               <div className="flex justify-between p-4">
-                <span>{language === "chinese" ? "版本" : "Version"}</span>
+                <span>{hasMounted ? (language === "chinese" ? "版本" : "Version") : "Version"}</span>
                 <span>{version}</span>
               </div>
               <Separator />
               <Button variant="ghost" className="flex w-full justify-between p-4 h-auto">
-                <span>{language === "chinese" ? "服务条款" : "Terms of Service"}</span>
+                <span>{hasMounted ? (language === "chinese" ? "服务条款" : "Terms of Service") : "Terms of Service"}</span>
                 <ChevronRight className="h-5 w-5" />
               </Button>
               <Separator />
               <Button variant="ghost" className="flex w-full justify-between p-4 h-auto">
-                <span>{language === "chinese" ? "隐私政策" : "Privacy Policy"}</span>
+                <span>{hasMounted ? (language === "chinese" ? "隐私政策" : "Privacy Policy") : "Privacy Policy"}</span>
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </CardContent>

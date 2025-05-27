@@ -1,9 +1,10 @@
 "use client"
 
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLanguage } from "@/hooks/language-context"
 
 export default function Footer() {
-  const [language] = useLocalStorage<string>("language", "english")
+  const { language } = useLanguage()
+  if (!language) return null;
 
   return (
     <footer className="border-t py-4 mt-auto">

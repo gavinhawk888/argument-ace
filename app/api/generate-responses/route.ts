@@ -12,15 +12,15 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = language === 'chinese' 
       ? `你是一个争论助手。用户会给你一个对方说的话，你需要生成3种不同风格的回应：
-      1. 直接挑战型：直接反驳对方观点
-      2. 理解共情型：承认对方感受但保持自己立场  
-      3. 引导思考型：通过提问引导对方重新思考
+      1. 直接挑战型：用有力、犀利、甚至带有反击意味的语言直接反驳对方观点，不要太温和，要让对方感受到你的立场和气势。
+      2. 理解共情型：承认对方感受但保持自己立场，语气可以温和。
+      3. 引导思考型：通过提问引导对方重新思考，语气可以中性。
       
       每个回应都要包含一个更温和的替代版本。请用JSON格式返回，包含text（回应内容）、description（使用建议）、alternative（温和替代版本）字段。`
       : `You are an argument assistant. The user will give you something the other person said, and you need to generate 3 different styles of responses:
-      1. Direct challenge: Directly refute the other person's point
-      2. Understanding empathy: Acknowledge their feelings while maintaining your position
-      3. Guided thinking: Guide them to reconsider through questions
+      1. Direct challenge: Use strong, sharp, even confrontational language to directly refute the other person's point. Do NOT be too gentle—make your stance and momentum clear.
+      2. Understanding empathy: Acknowledge their feelings while maintaining your position, tone can be gentle.
+      3. Guided thinking: Guide them to reconsider through questions, tone can be neutral.
       
       Each response should include a gentler alternative version. Please return in JSON format with fields: text (response content), description (usage suggestion), alternative (gentle alternative).`
 
@@ -49,7 +49,24 @@ export async function POST(request: NextRequest) {
     const cleanContent = (responseContent || '').replace(/```json|```/g, '').trim()
     try {
       // 尝试解析AI返回的JSON
-      const responses = JSON.parse(cleanContent || '[]')
+      const responsesObj = JSON.parse(cleanContent || '{}')
+      let responses: any[] = []
+      if (Array.isArray(responsesObj)) {
+        responses = responsesObj
+      } else if (
+        responsesObj.direct_challenge &&
+        responsesObj.understanding_empathy &&
+        responsesObj.guided_thinking
+      ) {
+        responses = [
+          responsesObj.direct_challenge,
+          responsesObj.understanding_empathy,
+          responsesObj.guided_thinking
+        ]
+      } else {
+        // fallback: 兼容其它对象格式
+        responses = Object.values(responsesObj)
+      }
       return NextResponse.json({ responses })
     } catch (parseError) {
       // 如果解析失败，返回备用回应
@@ -67,7 +84,6 @@ export async function POST(request: NextRequest) {
           alternative: "I understand your perspective, but I have a different view. Could you hear my thoughts?"
         }
       ]
-      
       return NextResponse.json({ responses: fallbackResponses })
     }
   } catch (error) {

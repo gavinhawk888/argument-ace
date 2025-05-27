@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Mic, Square, Loader2 } from "lucide-react"
+import { Mic, Square, Loader2, AlertCircle } from "lucide-react"
 import { useAudioRecorder } from "@/hooks/use-audio-recorder"
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLanguage } from "@/hooks/language-context"
 import { generateResponses, ArgumentResponse } from "@/lib/response-generator"
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
@@ -13,54 +13,108 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast"
 
 export default function HomePage() {
-  const [language] = useLocalStorage<string>("language", "english")
-  const [appState, setAppState] = useState<"idle" | "recording" | "processing" | "results">("idle")
+  const { language } = useLanguage()
+  if (!language) return null;
+  const [appState, setAppState] = useState<"idle" | "recording" | "processing" | "results" | "error">("idle")
   const [responses, setResponses] = useState<ArgumentResponse[]>([])
   const [isGeneratingResponses, setIsGeneratingResponses] = useState(false)
-  const { isRecording, transcript, isProcessing, startRecording, stopRecording, checkMicrophonePermission } = useAudioRecorder()
+  const { isRecording, transcript, isProcessing, hasError, startRecording, stopRecording, checkMicrophonePermission, resetStates } = useAudioRecorder()
   const router = useRouter()
   const { toast } = useToast()
+  const [hasResponseError, setHasResponseError] = useState(false)
 
-  // Set app state based on recording state and transcript
+  // 记录"对方说道"逐字动画是否完成
+  const [transcriptTyped, setTranscriptTyped] = useState(false)
+  const [finalTranscript, setFinalTranscript] = useState<string>("")
+  const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
+  const prevTranscript = useRef<string | null>(null);
+  
+  // 等待消息列表
+  const waitingMessages = language === "chinese" 
+    ? [
+        "AI正在生成回复...",
+        "请你耐心等待",
+        "快好了快好了，别催了！",
+        "正在思考最佳回应策略...",
+        "马上就好，再等等...",
+        "AI大脑正在高速运转中..."
+      ]
+    : [
+        "AI is generating responses...",
+        "Please be patient",
+        "Almost there, don't rush!",
+        "Thinking of the best response strategy...",
+        "Just a moment more...",
+        "AI brain is running at full speed..."
+      ];
+
+  // 动态切换等待消息
   useEffect(() => {
-    if (isRecording) {
-      setAppState("recording")
-    } else if (isProcessing) {
-      setAppState("processing")
-    } else if (transcript && !isGeneratingResponses) {
-      // Generate responses when transcript is available
-      handleGenerateResponses(transcript)
+    if (isGeneratingResponses) {
+      const interval = setInterval(() => {
+        setWaitingMessageIndex((prev) => (prev + 1) % waitingMessages.length)
+      }, 3000)
+      return () => clearInterval(interval)
+    } else {
+      setWaitingMessageIndex(0) // 重置到第一条消息
     }
-  }, [isRecording, isProcessing, transcript])
+  }, [isGeneratingResponses, waitingMessages.length])
+
+  useEffect(() => {
+    if (hasError && !isProcessing && !isRecording) {
+      setAppState("error")
+      const timer = setTimeout(() => {
+        handleReset()
+      }, 5000)
+      return () => clearTimeout(timer)
+    } else if (isRecording) {
+      setAppState("recording")
+    } else if (transcript && transcript !== prevTranscript.current && appState !== "results" && !isProcessing) {
+      // 只有在非results状态且不在处理中时才处理新的transcript，避免在建议回应页面时跳转
+      setTranscriptTyped(false);
+      setFinalTranscript(transcript); // 设置最终确定的transcript
+      prevTranscript.current = transcript;
+      setAppState("results");
+      setResponses([]);
+    }
+  }, [isRecording, transcript, hasError, isProcessing, appState])
+
+  // 进入results状态时立即开始请求AI回应，同时开始逐字显示
+  useEffect(() => {
+    if (appState === "results" && finalTranscript && !isGeneratingResponses && responses.length === 0 && !hasResponseError && !hasError && !isRecording) {
+      // 立即开始生成AI回应，不等待逐字动画结束
+      handleGenerateResponses(finalTranscript)
+    }
+  }, [appState, finalTranscript, isGeneratingResponses, responses.length, hasResponseError, hasError, isRecording])
 
   // Generate AI responses
   const handleGenerateResponses = async (transcriptText: string) => {
     if (!transcriptText.trim()) return
-    
     setIsGeneratingResponses(true)
-    setAppState("processing")
-    
+    // 不再切换到processing状态，保持在results页面
+    setHasResponseError(false)
     try {
       const generatedResponses = await generateResponses(transcriptText, language)
+      if (!generatedResponses || generatedResponses.length === 0 || !generatedResponses[0].text?.trim()) {
+        setHasResponseError(true)
+        return
+      }
       setResponses(generatedResponses)
-      setAppState("results")
-      
       toast({
         title: language === "chinese" ? "回应生成完成" : "Responses Generated",
-        description: language === "chinese" 
-          ? `生成了 ${generatedResponses.length} 个建议回应` 
+        description: language === "chinese"
+          ? `生成了 ${generatedResponses.length} 个建议回应`
           : `Generated ${generatedResponses.length} suggested responses`,
       })
     } catch (error) {
-      console.error("Error generating responses:", error)
+      setHasResponseError(true)
       toast({
         variant: "destructive",
         title: language === "chinese" ? "生成失败" : "Generation Failed",
-        description: language === "chinese" 
-          ? "无法生成回应，请稍后重试" 
-          : "Failed to generate responses, please try again",
+        description: language === "chinese"
+          ? "网络有点开小差，请点击重试按钮"
+          : "Network error, please click the retry button",
       })
-      setAppState("idle")
     } finally {
       setIsGeneratingResponses(false)
     }
@@ -97,6 +151,66 @@ export default function HomePage() {
     setAppState("idle")
     setResponses([])
     setIsGeneratingResponses(false)
+    setTranscriptTyped(false)
+    setHasResponseError(false)
+    setWaitingMessageIndex(0)
+    prevTranscript.current = null
+    setFinalTranscript("")
+    resetStates()
+  }
+
+  // Handle retry: 立即重试直接重新开始录音
+  const handleRetry = async () => {
+    setResponses([])
+    setIsGeneratingResponses(false)
+    setTranscriptTyped(false)
+    setHasResponseError(false)
+    setWaitingMessageIndex(0)
+    prevTranscript.current = null
+    setFinalTranscript("")
+    resetStates();
+    startRecording();
+  }
+
+  const handleRetryGenerate = () => {
+    setHasResponseError(false)
+    handleGenerateResponses(finalTranscript)
+  }
+
+  // 回应类型标签及颜色
+  const responseTypes = [
+    language === "chinese" ? "直接挑战" : "Direct Challenge",
+    language === "chinese" ? "理解共情" : "Empathy",
+    language === "chinese" ? "引导思考" : "Guided Thinking"
+  ];
+  const responseTypeColors = [
+    "bg-red-100 text-red-700",
+    "bg-blue-100 text-blue-700",
+    "bg-green-100 text-green-700"
+  ];
+
+  // 逐字显示文本动画（用于"对方说道"），动画结束时onEnd触发
+  function TypingText({ text, onEnd }: { text: string, onEnd?: () => void }) {
+    const [displayed, setDisplayed] = useState("")
+    const timerRef = useRef<NodeJS.Timeout | null>(null)
+    useEffect(() => {
+      setDisplayed("")
+      if (!text) return
+      let i = 0
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => {
+        setDisplayed(text.slice(0, i + 1))
+        i++
+        if (i >= text.length && timerRef.current) {
+          clearInterval(timerRef.current)
+          if (onEnd) onEnd()
+        }
+      }, 200)
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current)
+      }
+    }, [text, onEnd])
+    return <span>{displayed}</span>
   }
 
   return (
@@ -148,9 +262,9 @@ export default function HomePage() {
               onClick={stopRecording}
               variant="destructive"
               size="lg"
-              className="flex items-center gap-2"
+              className="inline-flex items-center gap-2 align-middle"
             >
-              <Square className="h-5 w-5" />
+              <Square className="h-5 w-5 inline-block align-middle" />
               {language === "chinese" ? "停止录制" : "Stop Recording"}
             </Button>
           </div>
@@ -176,47 +290,120 @@ export default function HomePage() {
           </div>
         )}
 
+        {appState === "error" && (
+          <div className="container mx-auto max-w-3xl px-4 py-12 text-center">
+            <h1 className="mb-4 text-3xl font-bold text-red-600">
+              {language === "chinese" ? "音频识别失败，请重试！" : "Audio Recognition Failed, Please Try Again!"}
+            </h1>
+            
+            <div className="relative mx-auto mb-10 h-24 w-24">
+              <div className="absolute inset-0 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="h-12 w-12 text-red-500" />
+              </div>
+            </div>
+            
+            <p className="mb-8 text-lg text-muted-foreground">
+              {language === "chinese" 
+                ? "5秒后将自动返回初始页面..." 
+                : "Returning to home page in 5 seconds..."}
+            </p>
+            
+            <Button
+              onClick={handleRetry}
+              variant="outline"
+              size="lg"
+              className="inline-flex items-center gap-2 align-middle"
+            >
+              <Mic className="h-5 w-5 inline-block align-middle" />
+              {language === "chinese" ? "立即重试" : "Try Again Now"}
+            </Button>
+          </div>
+        )}
+
         {appState === "results" && (
           <div className="container mx-auto max-w-5xl px-4 py-8">
             <h2 className="mb-6 text-3xl font-bold text-center">
               {language === "chinese" ? "建议回应" : "Suggested Replies"}
             </h2>
             
+            {hasResponseError && (
+              <div className="mb-4 text-center">
+                <div className="mb-2 text-red-600 font-semibold">
+                  {language === "chinese"
+                    ? "网络有点开小差，请点击重试按钮"
+                    : "Network error, please click the retry button"}
+                </div>
+                <Button
+                  onClick={handleRetryGenerate}
+                  variant="destructive"
+                  className="inline-flex items-center gap-2"
+                >
+                  {language === "chinese" ? "重试" : "Retry"}
+                </Button>
+              </div>
+            )}
+            
             <div className="mb-6 rounded-lg bg-secondary p-4">
               <h3 className="mb-2 font-medium text-sm text-muted-foreground">
                 {language === "chinese" ? "对方说道" : "They said"}:
               </h3>
-              <p className="text-lg italic">"{transcript}"</p>
+              <p className="text-lg italic">
+                {transcriptTyped
+                  ? <span>{finalTranscript}</span>
+                  : <TypingText text={finalTranscript} onEnd={() => setTranscriptTyped(true)} />
+                }
+              </p>
+              
+              {isGeneratingResponses && (
+                <div className="mt-4 pt-4 border-t border-muted-foreground/20">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">
+                      {waitingMessages[waitingMessageIndex]}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             
-            <div className="grid gap-6 md:grid-cols-3">
-              {responses.map((response, index) => (
-                <Card key={index} className="overflow-hidden">
-                  <CardHeader className="bg-primary/5 pb-2">
-                    <CardTitle className="text-lg text-primary font-bold">
-                      "{response.text}"
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <p className="text-sm text-muted-foreground">{response.description}</p>
-                    
-                    {response.alternative && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="text-sm font-medium mb-1">
-                          {language === "chinese" ? "更温和的替代方案" : "Cleaner Alternative"}:
-                        </h4>
-                        <p className="text-sm text-blue-600">"{response.alternative}"</p>
+            {responses.length === 0 && !isGeneratingResponses ? (
+              <div className="w-full flex justify-center">
+                <div className="text-center text-muted-foreground text-lg py-8">
+                  {language === "chinese" ? "等待生成回应..." : "Waiting to generate responses..."}
+                </div>
+              </div>
+            ) : responses.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-3">
+                {responses.map((response, index) => (
+                  <Card key={index} className="overflow-hidden">
+                    <CardHeader className="bg-primary/5 pb-2">
+                      <div className="flex justify-center">
+                        <span className={`inline-block rounded px-3 py-0.5 text-base font-bold ${responseTypeColors[index]}`}>{responseTypes[index]}</span>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      <CardTitle className="text-lg text-primary font-bold">
+                        {response.text}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <p className="text-sm text-muted-foreground">{response.description}</p>
+                      {response.alternative && (
+                        <div className="mt-4 pt-4 border-t">
+                          <h4 className="text-sm font-medium mb-1">
+                            {language === "chinese" ? "更温和的替代方案" : "Cleaner Alternative"}:
+                          </h4>
+                          <p className="text-sm text-blue-600">"{response.alternative}"</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : null}
             
             <div className="mt-8 flex justify-center">
-              <Button onClick={handleReset} className="flex items-center gap-2">
+              <Button onClick={handleRetry} className="flex items-center gap-2">
                 <Mic className="h-5 w-5" />
-                {language === "chinese" ? "录制新的论点" : "Record New Argument"}
+                {language === "chinese" ? "再次录制" : "Record Again"}
               </Button>
             </div>
           </div>
