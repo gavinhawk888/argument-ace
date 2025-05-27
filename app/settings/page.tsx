@@ -13,6 +13,7 @@ import { useHasMounted } from "@/hooks/use-has-mounted"
 
 export default function SettingsPage() {
   const { language, setLanguage } = useLanguage()
+  const hasMounted = useHasMounted()
   if (!language) return null;
   const [version] = useState("1.0.0")
 
