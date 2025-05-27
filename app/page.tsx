@@ -26,7 +26,9 @@ export default function HomePage() {
   // 记录"对方说道"逐字动画是否完成
   const [transcriptTyped, setTranscriptTyped] = useState(false)
   const [finalTranscript, setFinalTranscript] = useState<string>("")
+  const [displayText, setDisplayText] = useState<string>("") // 专门用于显示的文本，一旦设置就不变
   const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
+  const [transcriptLocked, setTranscriptLocked] = useState(false) // 添加锁定机制
   const prevTranscript = useRef<string | null>(null);
   
   // 等待消息列表
@@ -69,15 +71,17 @@ export default function HomePage() {
       return () => clearTimeout(timer)
     } else if (isRecording) {
       setAppState("recording")
-    } else if (transcript && transcript !== prevTranscript.current && appState !== "results" && !isProcessing) {
-      // 只有在非results状态且不在处理中时才处理新的transcript，避免在建议回应页面时跳转
+    } else if (transcript && transcript !== prevTranscript.current && !transcriptLocked && !isProcessing) {
+      // 只有在transcript未锁定且不在处理中时才处理新的transcript
       setTranscriptTyped(false);
       setFinalTranscript(transcript); // 设置最终确定的transcript
+      setDisplayText(transcript); // 设置显示文本，这个不会再改变
+      setTranscriptLocked(true); // 锁定transcript，防止后续更新
       prevTranscript.current = transcript;
       setAppState("results");
       setResponses([]);
     }
-  }, [isRecording, transcript, hasError, isProcessing, appState])
+  }, [isRecording, transcript, hasError, isProcessing, transcriptLocked])
 
   // 进入results状态时立即开始请求AI回应，同时开始逐字显示
   useEffect(() => {
@@ -156,6 +160,8 @@ export default function HomePage() {
     setWaitingMessageIndex(0)
     prevTranscript.current = null
     setFinalTranscript("")
+    setDisplayText("")
+    setTranscriptLocked(false)
     resetStates()
   }
 
@@ -168,6 +174,8 @@ export default function HomePage() {
     setWaitingMessageIndex(0)
     prevTranscript.current = null
     setFinalTranscript("")
+    setDisplayText("")
+    setTranscriptLocked(false)
     resetStates();
     startRecording();
   }
@@ -193,23 +201,29 @@ export default function HomePage() {
   function TypingText({ text, onEnd }: { text: string, onEnd?: () => void }) {
     const [displayed, setDisplayed] = useState("")
     const timerRef = useRef<NodeJS.Timeout | null>(null)
+    
     useEffect(() => {
-      setDisplayed("")
       if (!text) return
+      
+      setDisplayed("")
       let i = 0
+      
       if (timerRef.current) clearInterval(timerRef.current)
+      
       timerRef.current = setInterval(() => {
         setDisplayed(text.slice(0, i + 1))
         i++
-        if (i >= text.length && timerRef.current) {
-          clearInterval(timerRef.current)
+        if (i >= text.length) {
+          if (timerRef.current) clearInterval(timerRef.current)
           if (onEnd) onEnd()
         }
       }, 200)
+      
       return () => {
         if (timerRef.current) clearInterval(timerRef.current)
       }
     }, [text, onEnd])
+    
     return <span>{displayed}</span>
   }
 
@@ -349,8 +363,8 @@ export default function HomePage() {
               </h3>
               <p className="text-lg italic">
                 {transcriptTyped
-                  ? <span>{finalTranscript}</span>
-                  : <TypingText text={finalTranscript} onEnd={() => setTranscriptTyped(true)} />
+                  ? <span>{displayText}</span>
+                  : <TypingText text={displayText} onEnd={() => setTranscriptTyped(true)} />
                 }
               </p>
               
