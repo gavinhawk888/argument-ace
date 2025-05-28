@@ -15,9 +15,44 @@ import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 
+// 将TypingText组件移到外部，避免hooks在主组件内部定义
+function TypingText({ text, onEnd }: { text: string, onEnd?: () => void }) {
+  const [displayed, setDisplayed] = useState("")
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  
+  useEffect(() => {
+    if (!text) return
+    
+    setDisplayed("")
+    let i = 0
+    
+    if (timerRef.current) clearInterval(timerRef.current)
+    
+    timerRef.current = setInterval(() => {
+      setDisplayed(text.slice(0, i + 1))
+      i++
+      if (i >= text.length) {
+        if (timerRef.current) clearInterval(timerRef.current)
+        if (onEnd) onEnd()
+      }
+    }, 100)
+    
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [text, onEnd])
+  
+  return <span>{displayed}</span>
+}
+
 export default function HomePage() {
   const { language, setLanguage } = useLanguage()
-  if (!language) return null;
+  
+  // 早期返回，但确保language有默认值
+  if (!language) {
+    return <div>Loading...</div>
+  }
+
   const [appState, setAppState] = useState<"idle" | "recording" | "processing" | "results" | "error">("idle")
   const [responses, setResponses] = useState<ArgumentResponse[]>([])
   const [isGeneratingResponses, setIsGeneratingResponses] = useState(false)
@@ -45,7 +80,26 @@ export default function HomePage() {
   const [transcriptLocked, setTranscriptLocked] = useState(false) // 添加锁定机制
   const prevTranscript = useRef<string | null>(null);
   const processedAudioBlob = useRef<Blob | null>(null); // 跟踪已处理的audioBlob
-  
+
+  // 等待消息列表 - 确保language不为null
+  const waitingMessages = language === "chinese" 
+    ? [
+        "AI正在生成回复...",
+        "请你耐心等待",
+        "快好了快好了，别催了！",
+        "正在思考最佳回应策略...",
+        "马上就好，再等等...",
+        "AI大脑正在高速运转中..."
+      ]
+    : [
+        "AI is generating responses...",
+        "Please be patient",
+        "Almost there, don't rush!",
+        "Thinking of the best response strategy...",
+        "Just a moment more...",
+        "AI brain is running at full speed..."
+      ];
+
   // 处理URL哈希定位
   useEffect(() => {
     const handleHashChange = () => {
@@ -87,25 +141,6 @@ export default function HomePage() {
       window.removeEventListener("hashchange", handleHashChange);
     };
   }, []);
-
-  // 等待消息列表
-  const waitingMessages = language === "chinese" 
-    ? [
-        "AI正在生成回复...",
-        "请你耐心等待",
-        "快好了快好了，别催了！",
-        "正在思考最佳回应策略...",
-        "马上就好，再等等...",
-        "AI大脑正在高速运转中..."
-      ]
-    : [
-        "AI is generating responses...",
-        "Please be patient",
-        "Almost there, don't rush!",
-        "Thinking of the best response strategy...",
-        "Just a moment more...",
-        "AI brain is running at full speed..."
-      ];
 
   // 动态切换等待消息
   useEffect(() => {
@@ -264,36 +299,6 @@ export default function HomePage() {
     "bg-blue-100 text-blue-700",
     "bg-green-100 text-green-700"
   ];
-
-  // 逐字显示文本动画（用于"对方说道"），动画结束时onEnd触发
-  function TypingText({ text, onEnd }: { text: string, onEnd?: () => void }) {
-    const [displayed, setDisplayed] = useState("")
-    const timerRef = useRef<NodeJS.Timeout | null>(null)
-    
-    useEffect(() => {
-      if (!text) return
-      
-      setDisplayed("")
-      let i = 0
-      
-      if (timerRef.current) clearInterval(timerRef.current)
-      
-      timerRef.current = setInterval(() => {
-        setDisplayed(text.slice(0, i + 1))
-        i++
-        if (i >= text.length) {
-          if (timerRef.current) clearInterval(timerRef.current)
-          if (onEnd) onEnd()
-        }
-      }, 100)
-      
-      return () => {
-        if (timerRef.current) clearInterval(timerRef.current)
-      }
-    }, [text, onEnd])
-    
-    return <span>{displayed}</span>
-  }
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
