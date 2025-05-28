@@ -13,6 +13,7 @@ export function useAudioRecorder() {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const processingRef = useRef<boolean>(false) // 防重复处理标志
 
   // 重置所有状态
   const resetStates = useCallback(() => {
@@ -21,6 +22,7 @@ export function useAudioRecorder() {
     setTranscript("")
     setIsProcessing(false)
     setHasError(false)
+    processingRef.current = false // 重置处理标志
   }, [])
 
   // 开始录音
@@ -31,15 +33,31 @@ export function useAudioRecorder() {
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          sampleRate: 16000,
+          sampleRate: 44100,
           channelCount: 1,
           echoCancellation: true,
-          noiseSuppression: true
+          noiseSuppression: true,
+          autoGainControl: true
         } 
       })
       
+      // 检查支持的MIME类型
+      let mimeType = 'audio/webm;codecs=opus'
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm'
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'audio/mp4'
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = ''
+          }
+        }
+      }
+      
+      console.log('🎤 使用音频格式:', mimeType)
+      
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
+        mimeType: mimeType || undefined,
+        audioBitsPerSecond: 128000
       })
       
       audioChunksRef.current = []
@@ -52,15 +70,15 @@ export function useAudioRecorder() {
       
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { 
-          type: 'audio/webm;codecs=opus' 
+          type: mimeType || 'audio/webm' 
         })
         setAudioBlob(audioBlob)
         
         // 停止所有音频轨道
         stream.getTracks().forEach(track => track.stop())
         
-        // 处理音频识别
-        await processAudio(audioBlob)
+        // 不在这里调用processAudio，让页面的useEffect处理
+        // await processAudio(audioBlob)
       }
       
       mediaRecorderRef.current = mediaRecorder
@@ -87,7 +105,8 @@ export function useAudioRecorder() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
-      setIsProcessing(true)
+      // 不在这里设置isProcessing，让processAudio函数自己管理
+      // setIsProcessing(true)
       
       toast({
         title: "录音结束",
@@ -97,18 +116,49 @@ export function useAudioRecorder() {
   }, [isRecording, toast])
 
   // 处理音频识别
-  const processAudio = useCallback(async (audioBlob: Blob) => {
+  const processAudio = useCallback(async (audioBlob: Blob, selectedLanguage?: string) => {
+    if (processingRef.current) return
+    processingRef.current = true
+    setIsProcessing(true) // 开始处理时设置为true
     try {
-      // 获取用户语言偏好
-      const userLanguage = navigator.language || 'en-US'
+      // 获取用户语言偏好，优先使用传入的语言参数
+      const userLanguage = selectedLanguage || navigator.language || 'en-US'
       
-      // 首先尝试真实的语音识别API
+      // 只在开发环境中调试音频数据
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 开始调试音频数据...')
+        const debugResponse = await fetch('/api/debug-audio', {
+          method: 'POST',
+          body: audioBlob,
+          headers: {
+            'Content-Type': 'audio/webm',
+            'X-Language': userLanguage
+          }
+        })
+        
+        if (debugResponse.ok) {
+          const debugInfo = await debugResponse.json()
+          console.log('🔍 音频调试信息:', debugInfo)
+          
+          // 如果音频有问题，显示警告
+          if (debugInfo.recommendations && debugInfo.recommendations.length > 0) {
+            console.warn('⚠️ 音频问题:', debugInfo.recommendations)
+            toast({
+              variant: "destructive",
+              title: "音频质量警告",
+              description: debugInfo.recommendations.join('; '),
+            })
+          }
+        }
+      }
+      
+      // 首先尝试真实的语音识别API，传递语言参数
       let response = await fetch('/api/speech', {
         method: 'POST',
         body: audioBlob,
         headers: {
           'Content-Type': 'audio/webm',
-          'Accept-Language': userLanguage
+          'X-Language': userLanguage
         }
       })
       
@@ -123,7 +173,7 @@ export function useAudioRecorder() {
           body: audioBlob,
           headers: {
             'Content-Type': 'audio/webm',
-            'Accept-Language': userLanguage
+            'X-Language': userLanguage
           }
         })
         
@@ -145,25 +195,84 @@ export function useAudioRecorder() {
         throw new Error(result.error)
       }
       
+      // 如果有调试信息，输出到控制台
+      if (result.debug) {
+        console.log('🐛 API调试信息:', result.debug)
+      }
+      
       setTranscript(result.transcript || "")
       
       if (result.transcript) {
-        const detectedLang = result.detectedLanguage || userLanguage
+        // 处理语言检测结果
+        let detectedLang = result.selectedLanguage || userLanguage
+        let languageInfo = ""
+        
+        if (result.detectedLanguages && result.detectedLanguages.length > 0) {
+          // 新的多语言API响应
+          detectedLang = result.detectedLanguages[0] // 使用最主要的语言
+          
+          if (result.detectedLanguages.length > 1) {
+            // 多语言混合
+            languageInfo = `检测到多语言：${result.detectedLanguages.join(', ')}`
+          } else {
+            languageInfo = `检测到语言：${result.detectedLanguages[0]}`
+          }
+          
+          // 如果有单词级别的语言信息，显示更详细的信息
+          if (result.wordsWithLanguages && result.wordsWithLanguages.length > 0) {
+            const languageCounts = result.wordsWithLanguages.reduce((acc: Record<string, number>, word: any) => {
+              acc[word.language] = (acc[word.language] || 0) + 1
+              return acc
+            }, {})
+            
+            const languageStats = Object.entries(languageCounts)
+              .map(([lang, count]) => `${lang}(${count}词)`)
+              .join(', ')
+            
+            languageInfo = `语言分布：${languageStats}`
+          }
+        } else if (result.detectedLanguage) {
+          // 兼容旧的单语言API响应
+          detectedLang = result.detectedLanguage
+          languageInfo = `检测到语言：${result.detectedLanguage}`
+        }
+        
         const isChineseDetected = detectedLang.includes('zh')
         
         toast({
           title: isChineseDetected ? "识别完成" : "Recognition Complete",
           description: isChineseDetected 
-            ? `识别到：${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`
-            : `Recognized: ${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`,
+            ? `${languageInfo}\n识别到：${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`
+            : `${languageInfo}\nRecognized: ${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`,
         })
+        
+        // 在控制台输出详细的多语言信息
+        if (result.detectedLanguages) {
+          console.log('🌍 多语言识别结果:')
+          console.log('  检测到的语言:', result.detectedLanguages)
+          console.log('  置信度:', result.confidence)
+          
+          if (result.wordsWithLanguages) {
+            console.log('  单词级语言信息:')
+            result.wordsWithLanguages.forEach((word: any, index: number) => {
+              console.log(`    ${index + 1}. "${word.word}" (${word.language}, 置信度: ${word.confidence?.toFixed(2) || 'N/A'})`)
+            })
+          }
+        }
       } else {
         // 识别到空内容也算作错误
         setHasError(true)
+        
+        // 如果有调试信息，显示更详细的错误
+        let errorMessage = "未能识别到有效的语音内容"
+        if (result.debug) {
+          errorMessage += `\n调试信息: 音频大小=${result.debug.audioSize}字节, 处理时间=${result.debug.processingTime}ms`
+        }
+        
         toast({
           variant: "destructive", 
           title: "音频识别失败，请重试！",
-          description: "未能识别到有效的语音内容",
+          description: errorMessage,
         })
       }
     } catch (error) {
@@ -176,6 +285,7 @@ export function useAudioRecorder() {
       })
     } finally {
       setIsProcessing(false)
+      processingRef.current = false
     }
   }, [toast])
 
@@ -226,6 +336,7 @@ export function useAudioRecorder() {
     hasError,
     startRecording,
     stopRecording,
+    processAudio,
     checkMicrophonePermission,
     resetStates
   }

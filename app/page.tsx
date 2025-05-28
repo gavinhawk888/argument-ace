@@ -12,14 +12,27 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 
 export default function HomePage() {
-  const { language } = useLanguage()
+  const { language, setLanguage } = useLanguage()
   if (!language) return null;
   const [appState, setAppState] = useState<"idle" | "recording" | "processing" | "results" | "error">("idle")
   const [responses, setResponses] = useState<ArgumentResponse[]>([])
   const [isGeneratingResponses, setIsGeneratingResponses] = useState(false)
-  const { isRecording, transcript, isProcessing, hasError, startRecording, stopRecording, checkMicrophonePermission, resetStates } = useAudioRecorder()
+  const { 
+    isRecording, 
+    audioBlob, 
+    transcript, 
+    isProcessing, 
+    hasError,
+    startRecording, 
+    stopRecording, 
+    processAudio,
+    checkMicrophonePermission, 
+    resetStates 
+  } = useAudioRecorder()
   const router = useRouter()
   const { toast } = useToast()
   const [hasResponseError, setHasResponseError] = useState(false)
@@ -31,6 +44,7 @@ export default function HomePage() {
   const [waitingMessageIndex, setWaitingMessageIndex] = useState(0)
   const [transcriptLocked, setTranscriptLocked] = useState(false) // 添加锁定机制
   const prevTranscript = useRef<string | null>(null);
+  const processedAudioBlob = useRef<Blob | null>(null); // 跟踪已处理的audioBlob
   
   // 处理URL哈希定位
   useEffect(() => {
@@ -126,6 +140,15 @@ export default function HomePage() {
     }
   }, [isRecording, transcript, hasError, isProcessing, transcriptLocked])
 
+  // 当录音完成时自动进行语音识别，传递用户选择的语言
+  useEffect(() => {
+    if (audioBlob && !isProcessing && audioBlob !== processedAudioBlob.current) {
+      console.log('🔥 开始处理新的音频blob')
+      processedAudioBlob.current = audioBlob // 标记为已处理
+      processAudio(audioBlob, language)
+    }
+  }, [audioBlob, language, isProcessing]) // 移除processAudio依赖，避免重复调用
+
   // 进入results状态时立即开始请求AI回应，同时开始逐字显示
   useEffect(() => {
     if (appState === "results" && finalTranscript && !isGeneratingResponses && responses.length === 0 && !hasResponseError && !hasError && !isRecording) {
@@ -202,6 +225,7 @@ export default function HomePage() {
     setHasResponseError(false)
     setWaitingMessageIndex(0)
     prevTranscript.current = null
+    processedAudioBlob.current = null // 重置已处理的audioBlob
     setFinalTranscript("")
     setDisplayText("")
     setTranscriptLocked(false)
@@ -216,6 +240,7 @@ export default function HomePage() {
     setHasResponseError(false)
     setWaitingMessageIndex(0)
     prevTranscript.current = null
+    processedAudioBlob.current = null // 重置已处理的audioBlob
     setFinalTranscript("")
     setDisplayText("")
     setTranscriptLocked(false)

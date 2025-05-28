@@ -6,7 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:multilingual": "ts-node --esm test-multilingual-simple.ts",
+    "test:multilingual-unit": "ts-node --esm test-multilingual-unit.ts",
+    "test:tencent-asr": "ts-node --esm test-tencent-asr.ts",
+    "test:wav": "npx tsx test-deepgram.ts",
+    "test:deepgram-unit": "npx tsx test-deepgram-unit.ts",
+    "test:deepgram": "npx tsx test-deepgram-unit.ts",
+    "test:mixed": "npx tsx test-multilingual-mixing.ts",
+    "test:multilingual-mixing": "npx tsx test-multilingual-mixing.ts",
+    "test:language-selection": "npx tsx test-language-selection.ts",
+    "verify:deepgram": "npx tsx verify-deepgram-setup.ts"
   },
   "dependencies": {
     "@deepgram/sdk": "^4.2.0",
@@ -51,10 +61,12 @@
     "encoding": "^0.1.13",
     "eslint": "8.49.0",
     "eslint-config-next": "13.5.1",
+    "form-data": "^4.0.2",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.446.0",
     "next": "13.5.1",
     "next-themes": "^0.3.0",
+    "node-fetch": "^3.3.2",
     "openai": "^4.103.0",
     "postcss": "8.4.30",
     "react": "18.2.0",
@@ -77,6 +89,7 @@
     "@types/scheduler": "^0.26.0",
     "dotenv": "^16.5.0",
     "scheduler": "^0.26.0",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4"
   }
 }

@@ -29,16 +29,63 @@ export async function POST(request: NextRequest) {
       "We need to have a serious talk about this issue."
     ]
     
-    const transcripts = isChinesePreferred ? chineseTranscripts : englishTranscripts
-    const randomTranscript = transcripts[Math.floor(Math.random() * transcripts.length)]
-    const detectedLanguage = isChinesePreferred ? 'zh-CN' : 'en-US'
+    // 多语言混合模拟结果
+    const multilingualTranscripts = [
+      "你好 hello 世界 world",
+      "I think 我觉得 this is wrong",
+      "Let's go 我们走吧",
+      "Thank you 谢谢你 very much",
+      "这个 problem 很复杂"
+    ]
     
-    console.log('Mock transcript:', randomTranscript)
-    console.log('Mock detected language:', detectedLanguage)
+    // 随机选择是否使用多语言模式
+    const useMultilingual = Math.random() < 0.3 // 30%概率使用多语言
+    
+    let transcript: string
+    let detectedLanguages: string[]
+    let wordsWithLanguages: any[] = []
+    
+    if (useMultilingual) {
+      // 多语言模式
+      transcript = multilingualTranscripts[Math.floor(Math.random() * multilingualTranscripts.length)]
+      detectedLanguages = ['en', 'zh-CN']
+      
+      // 模拟单词级语言信息
+      const words = transcript.split(' ')
+      wordsWithLanguages = words.map((word, index) => ({
+        word: word,
+        language: /[一-龯]/.test(word) ? 'zh-CN' : 'en',
+        confidence: 0.9 + Math.random() * 0.1,
+        start: index * 0.5,
+        end: (index + 1) * 0.5
+      }))
+    } else {
+      // 单语言模式
+      const transcripts = isChinesePreferred ? chineseTranscripts : englishTranscripts
+      transcript = transcripts[Math.floor(Math.random() * transcripts.length)]
+      detectedLanguages = [isChinesePreferred ? 'zh-CN' : 'en-US']
+      
+      // 模拟单词级语言信息
+      const words = transcript.split(/\s+/)
+      wordsWithLanguages = words.map((word, index) => ({
+        word: word,
+        language: detectedLanguages[0],
+        confidence: 0.85 + Math.random() * 0.15,
+        start: index * 0.6,
+        end: (index + 1) * 0.6
+      }))
+    }
+    
+    console.log('Mock transcript:', transcript)
+    console.log('Mock detected languages:', detectedLanguages)
     
     return NextResponse.json({ 
-      transcript: randomTranscript,
-      detectedLanguage,
+      transcript,
+      detectedLanguages, // 新的多语言格式
+      wordsWithLanguages,
+      confidence: 0.9 + Math.random() * 0.1,
+      // 保持向后兼容
+      detectedLanguage: detectedLanguages[0],
       isMock: true 
     })
   } catch (error) {
