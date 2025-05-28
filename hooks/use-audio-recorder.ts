@@ -99,12 +99,16 @@ export function useAudioRecorder() {
   // 处理音频识别
   const processAudio = useCallback(async (audioBlob: Blob) => {
     try {
+      // 获取用户语言偏好
+      const userLanguage = navigator.language || 'en-US'
+      
       // 首先尝试真实的语音识别API
       let response = await fetch('/api/speech', {
         method: 'POST',
         body: audioBlob,
         headers: {
-          'Content-Type': 'audio/webm'
+          'Content-Type': 'audio/webm',
+          'Accept-Language': userLanguage
         }
       })
       
@@ -118,7 +122,8 @@ export function useAudioRecorder() {
           method: 'POST',
           body: audioBlob,
           headers: {
-            'Content-Type': 'audio/webm'
+            'Content-Type': 'audio/webm',
+            'Accept-Language': userLanguage
           }
         })
         
@@ -143,9 +148,14 @@ export function useAudioRecorder() {
       setTranscript(result.transcript || "")
       
       if (result.transcript) {
+        const detectedLang = result.detectedLanguage || userLanguage
+        const isChineseDetected = detectedLang.includes('zh')
+        
         toast({
-          title: "识别完成",
-          description: `识别到：${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`,
+          title: isChineseDetected ? "识别完成" : "Recognition Complete",
+          description: isChineseDetected 
+            ? `识别到：${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`
+            : `Recognized: ${result.transcript.substring(0, 50)}${result.transcript.length > 50 ? '...' : ''}`,
         })
       } else {
         // 识别到空内容也算作错误
