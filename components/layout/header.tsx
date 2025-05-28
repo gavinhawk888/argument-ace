@@ -7,7 +7,7 @@ import { useLanguage } from "@/hooks/language-context"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useHasMounted } from "@/hooks/use-has-mounted"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
   Sheet,
   SheetContent,
@@ -28,21 +28,24 @@ export default function Header() {
   const pathname = usePathname();
   const { language, setLanguage } = useLanguage();
   const hasMounted = useHasMounted();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   // 监听URL哈希变化，自动定位到对应区域
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (hash === "#features" || hash === "#faq") {
-        const element = document.getElementById(hash.substring(1));
-        if (element) {
-          const headerHeight = 64;
-          const elementPosition = element.offsetTop - headerHeight - 20;
-          window.scrollTo({
-            top: elementPosition,
-            behavior: "smooth"
-          });
-        }
+        setTimeout(() => {
+          const element = document.getElementById(hash.substring(1));
+          if (element) {
+            const headerHeight = 64;
+            const elementPosition = element.offsetTop - headerHeight - 20;
+            window.scrollTo({
+              top: elementPosition,
+              behavior: "smooth"
+            });
+          }
+        }, 100);
       }
     };
 
@@ -59,40 +62,62 @@ export default function Header() {
     };
   }, []);
 
-  const handleFeaturesClick = () => {
+  const scrollToElement = (elementId: string, fromMobile: boolean = false) => {
+    const element = document.getElementById(elementId);
+    if (element) {
+      const headerHeight = 64;
+      const elementPosition = element.offsetTop - headerHeight - 20;
+      
+      // 如果是移动端调用，延迟执行以确保Sheet完全关闭
+      const delay = fromMobile ? 400 : 0; // 增加移动端延迟
+      setTimeout(() => {
+        // 确保页面已完全加载和渲染
+        if (document.readyState === 'complete') {
+          window.scrollTo({
+            top: elementPosition,
+            behavior: "smooth"
+          });
+        } else {
+          // 如果页面还在加载，等待加载完成
+          window.addEventListener('load', () => {
+            window.scrollTo({
+              top: elementPosition,
+              behavior: "smooth"
+            });
+          }, { once: true });
+        }
+      }, delay);
+    }
+  };
+
+  const handleFeaturesClick = (fromMobile: boolean = false) => {
     if (pathname === "/") {
-      // 如果在首页，滚动到功能特点区域
-      const featuresElement = document.getElementById("features");
-      if (featuresElement) {
-        const headerHeight = 64; // 头部高度 (h-16 = 4rem = 64px)
-        const elementPosition = featuresElement.offsetTop - headerHeight - 20; // 额外20px间距
-        window.scrollTo({
-          top: elementPosition,
-          behavior: "smooth"
-        });
-      }
+      scrollToElement("features", fromMobile);
     } else {
-      // 如果在其他页面，跳转到首页的功能特点区域
       window.location.href = "/#features";
     }
   };
 
-  const handleFAQClick = () => {
+  const handleFAQClick = (fromMobile: boolean = false) => {
     if (pathname === "/") {
-      // 如果在首页，滚动到常见问题区域
-      const faqElement = document.getElementById("faq");
-      if (faqElement) {
-        const headerHeight = 64; // 头部高度
-        const elementPosition = faqElement.offsetTop - headerHeight - 20;
-        window.scrollTo({
-          top: elementPosition,
-          behavior: "smooth"
-        });
-      }
+      scrollToElement("faq", fromMobile);
     } else {
-      // 如果在其他页面，跳转到首页的常见问题区域
       window.location.href = "/#faq";
     }
+  };
+
+  const handleMobileNavClick = (action: string) => {
+    // 立即关闭Sheet
+    setIsSheetOpen(false);
+    
+    // 延迟执行滚动操作，确保Sheet完全关闭
+    setTimeout(() => {
+      if (action === "features") {
+        handleFeaturesClick(true);
+      } else if (action === "faq") {
+        handleFAQClick(true);
+      }
+    }, 150); // 增加延迟时间，确保动画完成
   };
 
   const mainNavLinks: NavLink[] = [
@@ -155,7 +180,7 @@ export default function Header() {
                     key={link.href} 
                     variant="ghost" 
                     size="sm"
-                    onClick={link.labelKey === "features" ? handleFeaturesClick : handleFAQClick}
+                    onClick={() => link.labelKey === "features" ? handleFeaturesClick() : handleFAQClick()}
                   >
                     {language === "chinese" ? (link.labelKey === "home" ? "主页" : link.labelKey === "features" ? "功能特点" : "常见问题") : link.text}
                   </Button>
@@ -191,7 +216,7 @@ export default function Header() {
           </div>
 
           <div className="md:hidden">
-            <Sheet>
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10">
                   <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -206,16 +231,15 @@ export default function Header() {
                       return (
                         link.show && (
                           link.isScroll ? (
-                            <SheetClose asChild key={link.href}>
-                              <Button 
-                                variant="ghost" 
-                                className="w-full justify-start text-base gap-2"
-                                onClick={link.labelKey === "features" ? handleFeaturesClick : handleFAQClick}
-                              >
-                                {LinkIcon && <LinkIcon className="h-5 w-5" />}
-                                {language === "chinese" ? (link.labelKey === "home" ? "主页" : link.labelKey === "features" ? "功能特点" : "常见问题") : link.text}
-                              </Button>
-                            </SheetClose>
+                            <Button 
+                              key={link.href}
+                              variant="ghost" 
+                              className="w-full justify-start text-base gap-2"
+                              onClick={() => handleMobileNavClick(link.labelKey)}
+                            >
+                              {LinkIcon && <LinkIcon className="h-5 w-5" />}
+                              {language === "chinese" ? (link.labelKey === "home" ? "主页" : link.labelKey === "features" ? "功能特点" : "常见问题") : link.text}
+                            </Button>
                           ) : (
                             <SheetClose asChild key={link.href}>
                               <Link href={link.href}>

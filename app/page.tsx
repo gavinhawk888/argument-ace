@@ -110,24 +110,48 @@ export default function HomePage() {
           if (featuresElement) {
             const headerHeight = 64; // 头部高度
             const elementPosition = featuresElement.offsetTop - headerHeight - 20;
-            window.scrollTo({
-              top: elementPosition,
-              behavior: "smooth"
-            });
+            
+            // 确保页面已完全加载和渲染
+            if (document.readyState === 'complete') {
+              window.scrollTo({
+                top: elementPosition,
+                behavior: "smooth"
+              });
+            } else {
+              // 如果页面还在加载，等待加载完成
+              window.addEventListener('load', () => {
+                window.scrollTo({
+                  top: elementPosition,
+                  behavior: "smooth"
+                });
+              }, { once: true });
+            }
           }
-        }, 100); // 短暂延迟确保页面已渲染
+        }, 200); // 增加延迟确保页面已渲染
       } else if (hash === "#faq") {
         setTimeout(() => {
           const faqElement = document.getElementById("faq");
           if (faqElement) {
             const headerHeight = 64; // 头部高度
             const elementPosition = faqElement.offsetTop - headerHeight - 20;
-            window.scrollTo({
-              top: elementPosition,
-              behavior: "smooth"
-            });
+            
+            // 确保页面已完全加载和渲染
+            if (document.readyState === 'complete') {
+              window.scrollTo({
+                top: elementPosition,
+                behavior: "smooth"
+              });
+            } else {
+              // 如果页面还在加载，等待加载完成
+              window.addEventListener('load', () => {
+                window.scrollTo({
+                  top: elementPosition,
+                  behavior: "smooth"
+                });
+              }, { once: true });
+            }
           }
-        }, 100);
+        }, 200);
       }
     };
 
