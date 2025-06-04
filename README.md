@@ -4,16 +4,16 @@
 
 ![Language](https://img.shields.io/badge/language-TypeScript-blue)
 ![Framework](https://img.shields.io/badge/framework-Next.js%2014-black)
-![ASR](https://img.shields.io/badge/ASR-Deepgram%20Nova--3-green)
+![ASR](https://img.shields.io/badge/ASR-Deepgram%20Nova--2/3-green)
 ![AI](https://img.shields.io/badge/AI-Gemini%202.0%20Flash-orange)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-brightgreen)
 ![Mobile](https://img.shields.io/badge/mobile-optimized-blue)
 
 ## 📋 项目简介
 
-Argument Ace 是一个智能语音辩论助手，帮助用户在争论或辩论中快速生成有效的回应策略。通过 Deepgram Nova-3/Nova-2 多语言语音识别和 Google Gemini 2.0 Flash AI模型，提供高质量的语音识别和智能回应生成。
+Argument Ace 是一个智能语音辩论助手，帮助用户在争论或辩论中快速生成有效的回应策略。通过 Deepgram Nova-2/Nova-3 语音识别和 Google Gemini 2.0 Flash AI模型，提供高质量的语音识别和智能回应生成。
 
-**🚀 最新更新 (2024):**
+**🚀 最新更新 (2025):**
 - ✅ **移动端导航优化**: 修复手机端"功能特点"和"常见问题"点击定位问题
 - ✅ **多语言界面支持**: 完整的中英文双语界面切换
 - ✅ **响应式设计优化**: 完美适配手机、平板、桌面设备
@@ -21,9 +21,9 @@ Argument Ace 是一个智能语音辩论助手，帮助用户在争论或辩论�
 
 ## ✨ 核心功能
 
-### 🎤 **Deepgram 多语言语音识别**
-- **智能模型选择**: 英文使用Nova-3模型，其他语言使用Nova-2模型
-- **多语言支持**: 支持中文、英文、西班牙语、法语、德语、日语、韩语等
+### 🎤 **Deepgram 语音识别**
+- **智能模型选择**: 英文使用Nova-3模型，中文使用Nova-2模型
+- **双语言支持**: 支持中文（zh-CN）和英文（en-US）
 - **动态语言切换**: 用户可以选择识别语言，系统自动适配
 - **高精度识别**: 95%+ 的识别准确率
 - **快速响应**: 1-2秒完成识别
@@ -31,7 +31,7 @@ Argument Ace 是一个智能语音辩论助手，帮助用户在争论或辩论�
 
 ### 🤖 **AI智能回应生成**
 - **Gemini 2.0 Flash**: Google最新最快的AI模型
-- **多种策略**: 逻辑反驳、情感共鸣、幽默化解三种风格
+- **三种策略**: 同时生成直接挑战、理解共情、引导思考三种风格回应
 - **温和替代**: 每个回应都包含更友善的表达方式
 - **双语支持**: 中文和英文智能切换
 - **快速响应**: 平均1秒内生成回应
@@ -44,7 +44,7 @@ Argument Ace 是一个智能语音辩论助手，帮助用户在争论或辩论�
 - **性能优化**: 移动端加载速度优化
 
 ### 🌐 **多语言智能处理**
-- **单语言识别**: 根据用户选择进行精准的单语言识别
+- **精确语言识别**: 根据用户选择进行精准的中文或英文识别
 - **语言自动切换**: 界面支持中英文动态切换
 - **智能格式化**: 自动标点符号、数字格式化
 - **时间戳精确**: 毫秒级单词时间戳
@@ -70,10 +70,8 @@ npm install
 # Deepgram 语音识别API (必需)
 DEEPGRAM_API_KEY=你的Deepgram_API密钥
 
-# AI回应生成 (二选一)
-OPENAI_API_KEY=你的OpenAI_API密钥
-# 或者使用 Google API
-GOOGLE_API_KEY=你的Google_API密钥
+# AI回应生成 (使用Gemini 2.0 Flash)
+OPENROUTER_API_KEY_GEMINI=你的OpenRouter_API密钥
 
 # 网站信息（可选）
 SITE_URL=http://localhost:3000
@@ -119,9 +117,7 @@ npx tsx test-deepgram-unit.ts
 ### 测试不同语言识别
 录制以下测试用例验证效果：
 - **中文**: "我今天要去开会"
-- **英文**: "I need to attend a meeting today"  
-- **西班牙语**: "Necesito asistir a una reunión hoy"
-- **法语**: "Je dois assister à une réunion aujourd'hui"
+- **英文**: "I need to attend a meeting today"
 
 ### AI回应生成测试
 ```bash
@@ -151,8 +147,8 @@ npm run test:gemini-flash
 
 ### 后端服务
 - **Next.js API Routes**: 服务器端API
-- **Deepgram API**: Nova-3/Nova-2 多语言语音识别
-- **OpenAI/Google API**: AI模型服务
+- **Deepgram API**: Nova-2/Nova-3 语音识别
+- **Google Gemini 2.0 Flash**: AI模型服务（通过OpenRouter）
 - **自定义服务层**: 错误处理和重试机制
 
 ### 音频处理
@@ -173,7 +169,7 @@ npm run test:gemini-flash
 |------|----------|------------|
 | 语音识别响应时间 | 1-2秒 | ✅ 移动端优化 |
 | AI回应生成速度 | < 1秒（平均） | ✅ 快速响应 |
-| 单语言识别准确率 | > 95% | ✅ 同样高精度 |
+| 语言识别准确率 | > 95% | ✅ 同样高精度 |
 | 页面加载速度 | < 3秒 | 🚀 移动端 < 2秒 |
 | 导航响应 | 即时 | ✅ 修复移动端问题 |
 | 支持音频格式 | WebM, MP4, WAV, MP3 | ✅ 移动端兼容 |
@@ -183,15 +179,6 @@ npm run test:gemini-flash
 ### Deepgram 语音识别支持
 - 🇨🇳 **中文** (zh-CN) - 使用Nova-2模型
 - 🇺🇸 **英语** (en-US) - 使用Nova-3模型
-- 🇪🇸 **西班牙语** (es) - 使用Nova-2模型
-- 🇫🇷 **法语** (fr) - 使用Nova-2模型
-- 🇩🇪 **德语** (de) - 使用Nova-2模型
-- 🇮🇹 **意大利语** (it) - 使用Nova-2模型
-- 🇵🇹 **葡萄牙语** (pt) - 使用Nova-2模型
-- 🇯🇵 **日语** (ja) - 使用Nova-2模型
-- 🇰🇷 **韩语** (ko) - 使用Nova-2模型
-- 🇳🇱 **荷兰语** (nl) - 使用Nova-2模型
-- 🇷🇺 **俄语** (ru) - 使用Nova-2模型
 
 ### 界面语言
 - 🇨🇳 **简体中文**: 完整的本地化界面
@@ -230,25 +217,26 @@ npm run test:mobile  # 移动端功能测试
 - npm 或 yarn
 - 现代浏览器（支持MediaRecorder API）
 - Deepgram API 账户
+- OpenRouter API 账户（用于Gemini 2.0 Flash）
 - 移动设备或模拟器（用于移动端测试）
 
 ## 📈 项目路线图
 
 ### 已完成 ✅
-- [x] Deepgram Nova-3/Nova-2 多语言识别集成
-- [x] 智能模型选择（英文用Nova-3，其他语言用Nova-2）
+- [x] Deepgram Nova-2/Nova-3 语音识别集成
+- [x] 智能模型选择（英文用Nova-3，中文用Nova-2）
 - [x] 动态语言切换功能
-- [x] Gemini 2.0 Flash AI回应生成
+- [x] Gemini 2.0 Flash AI回应生成（三种策略）
 - [x] 响应式Web界面
 - [x] 完善的错误处理
-- [x] **移动端导航修复** (2024新增)
-- [x] **多语言界面支持** (2024新增)
-- [x] **移动端体验优化** (2024新增)
-- [x] **性能优化和代码重构** (2024新增)
+- [x] **移动端导航修复** (2025新增)
+- [x] **多语言界面支持** (2025新增)
+- [x] **移动端体验优化** (2025新增)
+- [x] **性能优化和代码重构** (2025新增)
 
 ### 开发中 🚧
 - [ ] 实时流式语音识别
-- [ ] 真正的中英文混合识别支持
+- [ ] 扩展更多语言支持
 - [ ] 自定义词汇字典
 - [ ] 语音活动检测
 - [ ] 多说话人识别
@@ -280,9 +268,15 @@ npm run test:mobile  # 移动端功能测试
 ## ⚠️ 重要说明
 
 ### 关于语言识别能力
-当前版本支持**单语言识别**，即每次录音需要指定一种语言进行识别。项目暂不支持在同一段录音中混合使用多种语言（如中英文混合）。
+当前版本支持**中文和英文语音识别**，用户需要在录音前选择要识别的语言。项目暂不支持在同一段录音中混合使用多种语言（如中英文混合）。
 
-如需要混合语言识别功能，这将是未来版本的开发重点。
+### 关于AI回应生成
+系统同时生成**三种不同风格的回应策略**：
+1. **直接挑战**: 有力、犀利的直接反驳
+2. **理解共情**: 承认对方感受但保持立场
+3. **引导思考**: 通过提问引导重新思考
+
+每种策略都包含温和的替代版本，用户可根据场景选择。
 
 ## 🤝 贡献指南
 
@@ -318,6 +312,7 @@ npm run test:mobile  # 移动端功能测试
 感谢以下技术和服务提供商：
 - **Deepgram** - 提供强大的语音识别服务
 - **Google** - Gemini 2.0 Flash AI模型
+- **OpenRouter** - AI模型API访问平台
 - **Vercel** - 优秀的部署平台
 - **Next.js** - 强大的React框架
 - **Tailwind CSS** - 现代化的CSS框架
