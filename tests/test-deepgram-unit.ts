@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { strict as assert } from 'assert'
 import fs from 'fs'
 import path from 'path'
-import { createDeepgramService, DeepgramService } from './lib/deepgram-service'
+import { createDeepgramService, DeepgramService } from '../lib/deepgram-service'
 
 // 测试配置
 const TEST_CONFIG = {

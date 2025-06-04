@@ -2,7 +2,7 @@
 // 腾讯云实时语音识别API测试脚本
 
 import dotenv from 'dotenv'
-import { TencentAsrSession, TencentAsrResponse } from './tencent-asr-service'
+import { TencentAsrSession, TencentAsrResponse } from '../lib/tencent-asr-service'
 import fs from 'fs'
 import path from 'path'
 

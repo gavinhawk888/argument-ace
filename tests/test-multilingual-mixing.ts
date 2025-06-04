@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { createDeepgramService } from './lib/deepgram-service'
+import { createDeepgramService } from '../lib/deepgram-service'
 
 /**
  * 中英文混合语音识别测试

@@ -3,7 +3,7 @@
 // 模型: 16k_zh-PY (支持中文、英文、粤语)
 
 import dotenv from 'dotenv'
-import { TencentAsrSession, TencentAsrResponse } from './tencent-asr-service'
+import { TencentAsrSession, TencentAsrResponse } from '../lib/tencent-asr-service'
 import fs from 'fs'
 import path from 'path'
 

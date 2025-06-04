@@ -48,11 +48,7 @@ function TypingText({ text, onEnd }: { text: string, onEnd?: () => void }) {
 export default function HomePage() {
   const { language, setLanguage } = useLanguage()
   
-  // 早期返回，但确保language有默认值
-  if (!language) {
-    return <div>Loading...</div>
-  }
-
+  // ✅ 将所有 Hooks 移到条件返回之前
   const [appState, setAppState] = useState<"idle" | "recording" | "processing" | "results" | "error">("idle")
   const [responses, setResponses] = useState<ArgumentResponse[]>([])
   const [isGeneratingResponses, setIsGeneratingResponses] = useState(false)
@@ -99,6 +95,103 @@ export default function HomePage() {
         "Just a moment more...",
         "AI brain is running at full speed..."
       ];
+
+  // ✅ 将所有函数定义移到useEffect之前
+  // Generate AI responses
+  const handleGenerateResponses = async (transcriptText: string) => {
+    if (!transcriptText.trim()) return
+    setIsGeneratingResponses(true)
+    // 不再切换到processing状态，保持在results页面
+    setHasResponseError(false)
+    try {
+      const generatedResponses = await generateResponses(transcriptText, language)
+      if (!generatedResponses || generatedResponses.length === 0 || !generatedResponses[0].text?.trim()) {
+        setHasResponseError(true)
+        return
+      }
+      setResponses(generatedResponses)
+      toast({
+        title: language === "chinese" ? "回应生成完成" : "Responses Generated",
+        description: language === "chinese"
+          ? `生成了 ${generatedResponses.length} 个建议回应`
+          : `Generated ${generatedResponses.length} suggested responses`,
+      })
+    } catch (error) {
+      setHasResponseError(true)
+      toast({
+        variant: "destructive",
+        title: language === "chinese" ? "生成失败" : "Generation Failed",
+        description: language === "chinese"
+          ? "网络有点开小差，请点击重试按钮"
+          : "Network error, please click the retry button",
+      })
+    } finally {
+      setIsGeneratingResponses(false)
+    }
+  }
+
+  // Handle resets
+  const handleReset = () => {
+    setAppState("idle")
+    setResponses([])
+    setIsGeneratingResponses(false)
+    setTranscriptTyped(false)
+    setHasResponseError(false)
+    setWaitingMessageIndex(0)
+    prevTranscript.current = null
+    processedAudioBlob.current = null // 重置已处理的audioBlob
+    setFinalTranscript("")
+    setDisplayText("")
+    setTranscriptLocked(false)
+    resetStates()
+  }
+
+  // Handle microphone button click
+  const handleMicClick = async () => {
+    try {
+      if (appState === "idle") {
+        const hasPermission = await checkMicrophonePermission()
+        if (hasPermission) {
+          startRecording()
+        }
+      } else if (appState === "recording") {
+        stopRecording()
+      } else {
+        // Reset to initial state
+        handleReset()
+      }
+    } catch (error) {
+      console.error("Error handling microphone:", error)
+      toast({
+        variant: "destructive",
+        title: language === "chinese" ? "错误" : "Error",
+        description: language === "chinese" 
+          ? "访问麦克风时发生意外错误" 
+          : "An unexpected error occurred while accessing the microphone",
+      })
+    }
+  }
+
+  // Handle retry: 立即重试直接重新开始录音
+  const handleRetry = async () => {
+    setResponses([])
+    setIsGeneratingResponses(false)
+    setTranscriptTyped(false)
+    setHasResponseError(false)
+    setWaitingMessageIndex(0)
+    prevTranscript.current = null
+    processedAudioBlob.current = null // 重置已处理的audioBlob
+    setFinalTranscript("")
+    setDisplayText("")
+    setTranscriptLocked(false)
+    resetStates();
+    startRecording();
+  }
+
+  const handleRetryGenerate = () => {
+    setHasResponseError(false)
+    handleGenerateResponses(finalTranscript)
+  }
 
   // 处理URL哈希定位
   useEffect(() => {
@@ -216,102 +309,6 @@ export default function HomePage() {
     }
   }, [appState, finalTranscript, isGeneratingResponses, responses.length, hasResponseError, hasError, isRecording])
 
-  // Generate AI responses
-  const handleGenerateResponses = async (transcriptText: string) => {
-    if (!transcriptText.trim()) return
-    setIsGeneratingResponses(true)
-    // 不再切换到processing状态，保持在results页面
-    setHasResponseError(false)
-    try {
-      const generatedResponses = await generateResponses(transcriptText, language)
-      if (!generatedResponses || generatedResponses.length === 0 || !generatedResponses[0].text?.trim()) {
-        setHasResponseError(true)
-        return
-      }
-      setResponses(generatedResponses)
-      toast({
-        title: language === "chinese" ? "回应生成完成" : "Responses Generated",
-        description: language === "chinese"
-          ? `生成了 ${generatedResponses.length} 个建议回应`
-          : `Generated ${generatedResponses.length} suggested responses`,
-      })
-    } catch (error) {
-      setHasResponseError(true)
-      toast({
-        variant: "destructive",
-        title: language === "chinese" ? "生成失败" : "Generation Failed",
-        description: language === "chinese"
-          ? "网络有点开小差，请点击重试按钮"
-          : "Network error, please click the retry button",
-      })
-    } finally {
-      setIsGeneratingResponses(false)
-    }
-  }
-
-  // Handle microphone button click
-  const handleMicClick = async () => {
-    try {
-      if (appState === "idle") {
-        const hasPermission = await checkMicrophonePermission()
-        if (hasPermission) {
-          startRecording()
-        }
-      } else if (appState === "recording") {
-        stopRecording()
-      } else {
-        // Reset to initial state
-        handleReset()
-      }
-    } catch (error) {
-      console.error("Error handling microphone:", error)
-      toast({
-        variant: "destructive",
-        title: language === "chinese" ? "错误" : "Error",
-        description: language === "chinese" 
-          ? "访问麦克风时发生意外错误" 
-          : "An unexpected error occurred while accessing the microphone",
-      })
-    }
-  }
-
-  // Handle resets
-  const handleReset = () => {
-    setAppState("idle")
-    setResponses([])
-    setIsGeneratingResponses(false)
-    setTranscriptTyped(false)
-    setHasResponseError(false)
-    setWaitingMessageIndex(0)
-    prevTranscript.current = null
-    processedAudioBlob.current = null // 重置已处理的audioBlob
-    setFinalTranscript("")
-    setDisplayText("")
-    setTranscriptLocked(false)
-    resetStates()
-  }
-
-  // Handle retry: 立即重试直接重新开始录音
-  const handleRetry = async () => {
-    setResponses([])
-    setIsGeneratingResponses(false)
-    setTranscriptTyped(false)
-    setHasResponseError(false)
-    setWaitingMessageIndex(0)
-    prevTranscript.current = null
-    processedAudioBlob.current = null // 重置已处理的audioBlob
-    setFinalTranscript("")
-    setDisplayText("")
-    setTranscriptLocked(false)
-    resetStates();
-    startRecording();
-  }
-
-  const handleRetryGenerate = () => {
-    setHasResponseError(false)
-    handleGenerateResponses(finalTranscript)
-  }
-
   // 回应类型标签及颜色
   const responseTypes = [
     language === "chinese" ? "直接挑战" : "Direct Challenge",
@@ -323,6 +320,11 @@ export default function HomePage() {
     "bg-blue-100 text-blue-700",
     "bg-green-100 text-green-700"
   ];
+
+  // ✅ 现在在所有 Hooks 调用之后进行条件返回
+  if (!language) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden">
